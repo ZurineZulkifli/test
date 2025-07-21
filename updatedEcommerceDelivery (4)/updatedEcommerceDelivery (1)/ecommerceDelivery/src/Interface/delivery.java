@@ -1,4 +1,4 @@
-/*// --- delivery.java ---
+// --- delivery.java ---
 package Interface;
 
 import shared.ApiClient;
@@ -11,8 +11,10 @@ import java.awt.*;
 public class delivery extends JFrame {
     private JTable orderTable;
     private DefaultTableModel tableModel;
+    private ApiClient apiClient;
 
-    public delivery() {
+    public delivery(ApiClient client) {
+        this.apiClient = client;
         setTitle("Delivery Dashboard");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(800, 500);
@@ -29,7 +31,7 @@ public class delivery extends JFrame {
         titlePanel.add(titleLabel);
         add(titlePanel, BorderLayout.NORTH);
 
-        String[] columns = {"Order ID", "Customer", "Address", "Status"};
+        String[] columns = {"Order ID", "Customer", "Status"};
         tableModel = new DefaultTableModel(columns, 0);
         orderTable = new JTable(tableModel);
         JScrollPane scrollPane = new JScrollPane(orderTable);
@@ -55,18 +57,16 @@ public class delivery extends JFrame {
 
     private void loadOrdersFromAPI() {
         try {
-            ApiClient client = new ApiClient("");
-            JSONArray orders = client.getOrders();
+            // Note: This would need to be implemented in ApiClient for delivery personnel
+            // For now, showing placeholder message
             tableModel.setRowCount(0);
-            for (int i = 0; i < orders.length(); i++) {
-                JSONObject order = orders.getJSONObject(i);
-                tableModel.addRow(new Object[]{
-                    order.getString("order_id"),
-                    order.getString("customer"),
-                    order.getString("address"),
-                    order.getString("status")
-                });
-            }
+            tableModel.addRow(new Object[]{"001", "Customer A", "Pending"});
+            tableModel.addRow(new Object[]{"002", "Customer B", "Shipped"});
+            
+            JOptionPane.showMessageDialog(this, 
+                "Delivery module requires additional API endpoints.\nShowing sample data.", 
+                "Info", JOptionPane.INFORMATION_MESSAGE);
+                
         } catch (Exception e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Error loading orders from server.");
@@ -78,14 +78,10 @@ public class delivery extends JFrame {
         if (selectedRow != -1) {
             String orderId = tableModel.getValueAt(selectedRow, 0).toString();
             try {
-                ApiClient client = new ApiClient("");
-                JSONObject response = client.markOrderAsDelivered(orderId);
-                if (response.getBoolean("success")) {
-                    tableModel.setValueAt("Delivered", selectedRow, 3);
-                    JOptionPane.showMessageDialog(this, "Order marked as Delivered.");
-                } else {
-                    JOptionPane.showMessageDialog(this, "Failed to update delivery status.");
-                }
+                // Update the table locally (would need proper API integration)
+                tableModel.setValueAt("Delivered", selectedRow, 2);
+                JOptionPane.showMessageDialog(this, "Order marked as Delivered (local update).");
+                
             } catch (Exception e) {
                 e.printStackTrace();
                 JOptionPane.showMessageDialog(this, "Error updating delivery status.");
@@ -96,6 +92,10 @@ public class delivery extends JFrame {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new delivery().setVisible(true));
+        SwingUtilities.invokeLater(() -> {
+            // Would need proper authentication for delivery personnel
+            ApiClient client = new ApiClient("dummy-token");
+            new delivery(client).setVisible(true);
+        });
     }
-}*/
+}
