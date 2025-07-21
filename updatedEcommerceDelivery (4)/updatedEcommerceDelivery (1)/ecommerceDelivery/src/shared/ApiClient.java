@@ -161,7 +161,7 @@ public class ApiClient {
     }
     
 public JSONObject updatePaymentStatus(String orderId, String paymentMethod) throws IOException {
-    String urlString = "http://localhost/ecommerce-api/api/orders/pay.php?id=" + orderId ;
+    String urlString = "http://localhost/ecommerce-api/api/orders/" + orderId;
     URL url = new URL(urlString);
     
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -173,6 +173,7 @@ public JSONObject updatePaymentStatus(String orderId, String paymentMethod) thro
 
     JSONObject body = new JSONObject();
     body.put("status", "Paid");
+    body.put("payment_method", paymentMethod);
 
     try (OutputStream os = conn.getOutputStream()) {
         byte[] input = body.toString().getBytes("utf-8");
