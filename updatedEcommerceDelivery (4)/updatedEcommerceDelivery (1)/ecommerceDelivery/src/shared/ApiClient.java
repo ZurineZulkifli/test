@@ -26,15 +26,21 @@ public class ApiClient {
             json.put("username", username);
             json.put("password", password);
 
+            System.out.println("Sending login request to: " + url);
+            System.out.println("Request body: " + json.toString());
+
             // Send request
             try (OutputStream os = conn.getOutputStream()) {
                 byte[] input = json.toString().getBytes("utf-8");
                 os.write(input, 0, input.length);
             }
 
+            int responseCode = conn.getResponseCode();
+            System.out.println("Response code: " + responseCode);
+
             // Read response (handle both success and error)
             BufferedReader br;
-            if (conn.getResponseCode() >= 200 && conn.getResponseCode() < 300) {
+            if (responseCode >= 200 && responseCode < 300) {
                 br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"));
             } else {
                 br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"));
@@ -46,10 +52,37 @@ public class ApiClient {
                 response.append(line.trim());
             }
 
-            // Print raw response for debugging
-            System.out.println("Raw login response: " + response);
+            String responseText = response.toString();
+            System.out.println("Raw login response: '" + responseText + "'");
+            System.out.println("Response length: " + responseText.length());
 
-            return new JSONObject(response.toString());
+            // Check if response is empty
+            if (responseText.trim().isEmpty()) {
+                JSONObject error = new JSONObject();
+                error.put("success", false);
+                error.put("message", "Empty response from server");
+                return error;
+            }
+
+            // Check if response starts with proper JSON
+            String trimmed = responseText.trim();
+            if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+                System.out.println("Invalid JSON response. Response: " + responseText);
+                JSONObject error = new JSONObject();
+                error.put("success", false);
+                error.put("message", "Invalid response format from server");
+                return error;
+            }
+
+            try {
+                return new JSONObject(responseText);
+            } catch (Exception jsonEx) {
+                System.out.println("JSON parsing error: " + jsonEx.getMessage());
+                JSONObject error = new JSONObject();
+                error.put("success", false);
+                error.put("message", "Invalid JSON response: " + jsonEx.getMessage());
+                return error;
+            }
 
         } catch (Exception e) {
             e.printStackTrace();

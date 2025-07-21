@@ -89,7 +89,8 @@ public class login {
                 JSONObject response = ApiClient.login(username, password);
                 System.out.println("Login response: " + response);
 
-                if (response != null && response.getBoolean("success")) {
+                // Check if response has success field and it's true
+                if (response != null && response.has("success") && response.getBoolean("success")) {
                     String token = response.getString("token");
                     ApiClient apiClient = new ApiClient(token);
 
@@ -98,7 +99,16 @@ public class login {
                     productWindow.showWindow();
                     frame.dispose();
                 } else {
-                    JOptionPane.showMessageDialog(frame, "Login failed: " + response.getString("message"), "Login Error", JOptionPane.ERROR_MESSAGE);
+                    // Handle error cases
+                    String errorMessage = "Login failed";
+                    if (response != null && response.has("message")) {
+                        errorMessage = "Login failed: " + response.getString("message");
+                    } else if (response != null) {
+                        errorMessage = "Login failed: Unexpected response format";
+                    } else {
+                        errorMessage = "Login failed: No response from server";
+                    }
+                    JOptionPane.showMessageDialog(frame, errorMessage, "Login Error", JOptionPane.ERROR_MESSAGE);
                 }
             } catch (Exception ex) {
                 ex.printStackTrace();
