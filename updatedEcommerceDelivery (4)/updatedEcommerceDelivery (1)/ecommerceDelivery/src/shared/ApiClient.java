@@ -175,12 +175,17 @@ public JSONObject updatePaymentStatus(String orderId, String paymentMethod) thro
     body.put("status", "Paid");
     body.put("payment_method", paymentMethod);
 
+    System.out.println("Sending payment request to: " + urlString);
+    System.out.println("Request body: " + body.toString());
+
     try (OutputStream os = conn.getOutputStream()) {
         byte[] input = body.toString().getBytes("utf-8");
         os.write(input, 0, input.length);
     }
 
     int responseCode = conn.getResponseCode();
+    System.out.println("Response code: " + responseCode);
+
     InputStream is = (responseCode >= 200 && responseCode < 300)
             ? conn.getInputStream()
             : conn.getErrorStream();
@@ -193,8 +198,38 @@ public JSONObject updatePaymentStatus(String orderId, String paymentMethod) thro
     }
     in.close();
 
-    System.out.println("Update payment response: " + response);
-    return new JSONObject(response.toString());
+    String responseText = response.toString();
+    System.out.println("Raw response: '" + responseText + "'");
+    System.out.println("Response length: " + responseText.length());
+    
+    // Check if response is empty or starts with whitespace
+    if (responseText.trim().isEmpty()) {
+        JSONObject error = new JSONObject();
+        error.put("success", false);
+        error.put("message", "Empty response from server");
+        return error;
+    }
+    
+    // Check if response starts with proper JSON
+    String trimmed = responseText.trim();
+    if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+        System.out.println("Invalid JSON response. First 100 chars: " + 
+                          responseText.substring(0, Math.min(100, responseText.length())));
+        JSONObject error = new JSONObject();
+        error.put("success", false);
+        error.put("message", "Invalid JSON response: " + trimmed.substring(0, Math.min(50, trimmed.length())));
+        return error;
+    }
+
+    try {
+        return new JSONObject(responseText);
+    } catch (Exception e) {
+        System.out.println("JSON parsing error: " + e.getMessage());
+        JSONObject error = new JSONObject();
+        error.put("success", false);
+        error.put("message", "JSON parsing error: " + e.getMessage());
+        return error;
+    }
 }
 
 }

@@ -1,15 +1,19 @@
 <?php
+// Start output buffering to prevent any stray output
+ob_start();
+
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../config/jwt.php';
 
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: PATCH, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-HTTP-Method-Override");
 
 // Handle OPTIONS preflight request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
+    ob_clean();
     exit;
 }
 
@@ -19,6 +23,7 @@ $userData = validateJWT($token);
 
 if (!$userData) {
     http_response_code(401);
+    ob_clean();
     echo json_encode(["success" => false, "message" => "Unauthorized"]);
     exit;
 }
@@ -34,8 +39,21 @@ if ($actualMethod === 'PATCH' && $orderId && !empty($data->status)) {
         // Allow customer and delivery roles only
         if (!in_array($userData['role'], ['customer', 'delivery'])) {
             http_response_code(403);
+            ob_clean();
             echo json_encode(["success" => false, "message" => "Forbidden"]);
             exit;
+        }
+
+        // Verify order belongs to customer (if customer role)
+        if ($userData['role'] === 'customer') {
+            $stmt = $pdo->prepare("SELECT order_id FROM orders WHERE order_id = ? AND user_id = ?");
+            $stmt->execute([$orderId, $userData['userId']]);
+            if (!$stmt->fetch()) {
+                http_response_code(403);
+                ob_clean();
+                echo json_encode(["success" => false, "message" => "Access denied"]);
+                exit;
+            }
         }
 
         // Get current status
@@ -45,11 +63,30 @@ if ($actualMethod === 'PATCH' && $orderId && !empty($data->status)) {
 
         if (!$currentStatus) {
             http_response_code(404);
+            ob_clean();
             echo json_encode(["success" => false, "message" => "Order not found"]);
             exit;
         }
 
-        // Define valid transitions
+        // Handle payment status update (from Java frontend)
+        if ($data->status === 'Paid' && !empty($data->payment_method)) {
+            // Update order with payment information
+            $stmt = $pdo->prepare("UPDATE orders SET status = ?, payment_method = ? WHERE order_id = ?");
+            $stmt->execute([$data->status, $data->payment_method, $orderId]);
+
+            http_response_code(200);
+            ob_clean();
+            echo json_encode([
+                "success" => true,
+                "message" => "Payment confirmed",
+                "order_id" => $orderId,
+                "status" => $data->status,
+                "payment_method" => $data->payment_method
+            ]);
+            exit;
+        }
+
+        // Define valid transitions for delivery status updates
         $validTransitions = [
             'pending' => ['Paid'],
             'Paid' => ['shipped'],
@@ -58,12 +95,14 @@ if ($actualMethod === 'PATCH' && $orderId && !empty($data->status)) {
 
         if (!isset($validTransitions[$currentStatus])) {
             http_response_code(400);
+            ob_clean();
             echo json_encode(["success" => false, "message" => "Invalid current status"]);
             exit;
         }
 
         if (!in_array($data->status, $validTransitions[$currentStatus])) {
             http_response_code(400);
+            ob_clean();
             echo json_encode(["success" => false, "message" => "Invalid status transition"]);
             exit;
         }
@@ -93,6 +132,7 @@ if ($actualMethod === 'PATCH' && $orderId && !empty($data->status)) {
         }
 
         http_response_code(200);
+        ob_clean();
         echo json_encode([
             "success" => true,
             "message" => "Order status updated",
@@ -100,6 +140,7 @@ if ($actualMethod === 'PATCH' && $orderId && !empty($data->status)) {
         ]);
     } catch (PDOException $e) {
         http_response_code(500);
+        ob_clean();
         echo json_encode([
             "success" => false,
             "message" => "Failed to update order status",
@@ -108,6 +149,7 @@ if ($actualMethod === 'PATCH' && $orderId && !empty($data->status)) {
     }
 } else {
     http_response_code(400);
+    ob_clean();
     echo json_encode(["success" => false, "message" => "Invalid request"]);
 }
 ?>
