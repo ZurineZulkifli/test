@@ -2,6 +2,9 @@
 // Start output buffering to prevent any stray output
 ob_start();
 
+// Debug logging
+error_log("id.php accessed - URI: " . $_SERVER['REQUEST_URI'] . " Method: " . $_SERVER['REQUEST_METHOD'] . " ID: " . ($_GET['id'] ?? 'none'));
+
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../config/jwt.php';
 
@@ -30,6 +33,9 @@ if (!$userData) {
 
 $orderId = $_GET['id'] ?? null;
 $data = json_decode(file_get_contents("php://input"));
+
+// Debug logging
+error_log("Order ID: " . $orderId . " Data: " . json_encode($data) . " User: " . $userData['userId']);
 
 $actualMethod = $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'] ?? $_SERVER['REQUEST_METHOD'];
 
